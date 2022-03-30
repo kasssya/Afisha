@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from movie_app.serializers import DirectorSerializers, MovieSerializers, ReviewSerializers
 from movie_app.models import Director, Movie, Review
 from rest_framework import status
-
+from rest_framework.generics import ListAPIView, ListCreateAPIView
+from rest_framework.permissions import IsAuthenticated
 
 
 @api_view(['GET', 'POST'])
@@ -116,4 +117,6 @@ def movies_reviews_view(request):
     movie_reviews = Movie.objects.all()
     data = MovieSerializers(movie_reviews, many=True).data
     return Response(data=data)
+
+
 

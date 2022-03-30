@@ -1,43 +1,31 @@
-from rest_framework.decorators import api_view, permission_classes
+from django.contrib.auth.models import User
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from users.serializers import UserValidateSerializer, UserAuthorizationSerializer
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from movie_app.serializers import ReviewSerializers
-from movie_app.models import Review
-
-
-@api_view(['POST'])
-def authorization(request):
-    if request.method == 'POST':
-        username = request.data.get('username')  # admin
-        password = request.data.get('password')  # 123
-        user = authenticate(username=username, password=password)
-        if user:
-            Token.objects.filter(user=user).delete()
-            token = Token.objects.create(user=user)
-            return Response(data={'key': token.key})
-        return Response(data={'error': 'User not found'},
-                        status=status.HTTP_404_NOT_FOUND)
-
-
-from django.contrib.auth.models import User
 
 
 @api_view(['POST'])
 def registration(request):
-    if request.method == 'POST':
-        username = request.data.get('username')
-        password = request.data.get('password')
-        User.objects.create_user(username=username, password=password)
-        return Response(data={'message': 'User created'},
-                        status=status.HTTP_201_CREATED)
+    serializer = UserValidateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    User.objects.create_user(**serializer.validated_data)
+    return Response(data={'message': 'User created'})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def user_reviews(request):
-    reviews = Review.objects.filter(author=request.user)
-    serializer = ReviewSerializers(reviews, many=True)
-    return Response(data=serializer.data)
+@api_view(['POST'])
+def authorization(request):
+    serializer = UserAuthorizationSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    username = request.data.get('username')
+    password = request.data.get('password')
+    user = authenticate(username=username, password=password)
+    if user:
+        try:
+            token = Token.objects.get(user=user)
+        except Token.DoesNotExist:
+            token = Token.objects.create(user=user)
+        return Response(data={'key': token.key})
+    return Response(data={'message': 'User not found'},
+                    status=404)
